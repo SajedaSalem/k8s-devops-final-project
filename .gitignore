@@ -1,0 +1,40 @@
+# Terraform working files and state
+**/.terraform/
+*.tfstate*
+*.tfplan
+crash.log
+crash.*.log
+
+# Real Terraform variable values; keep example templates
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+!*.tfvars.json.example
+
+# SSH private keys
+.ssh/
+id_rsa
+id_ed25519
+k8slab_key
+*.pem
+*.key
+
+# Kubernetes access credentials
+.kube/
+kubeconfig
+kubeconfig.*
+admin.conf
+
+# Local application secrets; keep example templates
+.env
+.env.*
+!.env.example
+
+# Python environments and generated files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/

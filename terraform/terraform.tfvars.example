@@ -1,4 +1,4 @@
 # Copy this file to terraform.tfvars and replace the placeholders.
 
-subscription_id     = "your_azure_subscription_id"
-ssh_public_key_path = "/home/your_linux_user/.ssh/k8slab_key.pub"
+subscription_id   = "your-real-azure-subscription-id"
+allowed_public_ip = "your-real-public-ip/32"

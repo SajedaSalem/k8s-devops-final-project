@@ -335,3 +335,307 @@ The recommended permissions are:
 ~/.ssh/authorized_keys → 600
 
 This ensures that only the owner can modify the SSH configuration and authorized keys.
+
+# Task 9 ___________________________________________________________________________________________
+
+Ansible Core was installed only on the control-plane node k8slab-cp1.
+The worker node k8slab-w1 does not have Ansible installed.
+
+### Installation
+
+On k8slab-cp1, Ansible Core was installed with:
+
+```bash
+sudo dnf install -y epel-release
+sudo dnf install -y ansible-core
+```
+The installation was verified with:
+
+![ Key-Based SSH Access from cp1 to w1](docs/screenshots/task09-ansibleVersion.png)
+
+The project repository was then cloned on cp1 under the automation user's home directory:
+
+```bash
+cd ~
+git clone https://github.com/SajedaSalem/k8s-devops-final-project.git
+```
+ 
+ ### Why does w1 require no Ansible software installed?
+
+Ansible is agentless. The Ansible software runs only on the controller node, which in this project is k8slab-cp1.
+The controller connects remotely to k8slab-w1 using SSH and executes Ansible modules there.
+Therefore, w1 does not need Ansible installed.
+
+It only needs:
+- SSH access
+- Python
+- the automation user sajida
+- passwordless sudo permissions
+
+This allows cp1 to manage w1 remotely.
+
+
+
+# Task 10 __________________________________________________________________________________________
+
+An Ansible inventory was created to define the Kubernetes control-plane and worker nodes.
+The inventory contains:
+
+```ini
+[k8s_master]
+k8slab-cp1 ansible_connection=local
+
+[k8s_workers]
+k8slab-w1 ansible_host=10.0.1.11
+
+[k8s_cluster:children]
+k8s_master
+k8s_workers
+```
+A group variables file was created at: ansible/group_vars/all.yml
+with:
+
+```
+cp1_ip: "10.0.1.10"
+w1_ip: "10.0.1.11"
+cluster_user: "sajida"
+pod_network_cidr: "192.168.0.0/16"
+
+ansible_user: "{{ cluster_user }}"
+ansible_become: true
+```
+Connectivity to both nodes was verified with:
+![ Key-Based SSH Access from cp1 to w1](docs/screenshots/task10-ping.png)
+
+
+### Why is cp1 managed with ansible_connection=local instead of connecting over SSH to itself?
+
+cp1 is the Ansible controller and is also part of the Kubernetes cluster.
+
+Using: ansible_connection=local
+allows Ansible to manage the control-plane node directly from the local machine instead of opening an unnecessary SSH connection back to itself.
+This makes the configuration simpler and avoids relying on SSH for local execution.
+
+
+# Task 11 __________________________________________________________________________________________
+
+Created the Ansible playbook: `ansible/prepare-nodes.yml`
+
+The playbook performs the following tasks on both Kubernetes nodes:
+
+- Updates the DNF package cache
+- Upgrades installed packages
+- Installs administration tools:
+  - nano
+  - vim
+  - git
+  - curl
+  - wget
+  - bash-completion
+  - tar
+  - tmux
+- Installs networking and troubleshooting tools:
+  - iproute
+  - net-tools
+  - bind-utils
+  - traceroute
+  - tcpdump
+  - lsof
+  - sysstat
+- Installs Python 3 and pip
+- Installs and enables chrony
+- Enables and starts SSH
+- Displays system information using Ansible facts
+- Checks whether a reboot is required using `needs-restarting -r`
+- Reboots only worker nodes when necessary
+- Never automatically reboots the control-plane node
+
+
+The playbook was executed with:
+
+```bash
+ansible-playbook -i inventory.ini prepare-nodes.yml
+```
+
+### Verification
+
+![ Prepare Nodes ](docs/screenshots/task11-playRecap.png)
+
+The worker node required a reboot after package updates and was automatically rebooted by Ansible. The control-plane node was intentionally not rebooted.
+
+
+### What does idempotency mean in Ansible and Infrastructure as Code?
+
+Idempotency means that repeatedly applying the same automation should bring the system to the same desired state without unnecessarily repeating changes.
+For example, if a package is already installed or a service is already running, Ansible reports the task as ok instead of changing the system again.
+This can be seen in the playbook output. The control-plane node had already been prepared, therefore most tasks returned:
+
+ok
+
+while the newly recreated worker required configuration changes and returned:
+
+changed
+
+This allows Infrastructure as Code to be safely executed multiple times while keeping systems consistent.
+
+
+# Task 12 __________________________________________________________________________________________
+
+### Why can control-plane.yml and workers.yml not be swapped?
+
+The control plane must be initialized before any worker can join the cluster.
+control-plane.yml runs kubeadm init, which creates the Kubernetes control plane and generates the worker join command containing the API server address, token, and discovery information.
+
+workers.yml depends on that generated join command.
+
+Therefore, if workers.yml ran first, the worker would have no initialized Kubernetes API server to connect to and no valid join command to use.
+
+# Task 13 __________________________________________________________________________________________
+
+For Kubernetes to run correctly, both nodes were prepared with the required Linux kernel, networking, security, and container runtime settings.
+
+### Kubernetes Prerequisites
+
+The playbook `ansible/prerequisites.yml` performs the following configuration on all Kubernetes nodes:
+
+- Disables swap immediately with `swapoff -a`
+- Disables swap permanently in `/etc/fstab`
+- Sets SELinux to `permissive`
+- Loads the required kernel modules:
+  - `overlay`
+  - `br_netfilter`
+- Ensures the kernel modules are loaded after reboot
+- Configures the required sysctl parameters:
+  - `net.bridge.bridge-nf-call-iptables = 1`
+  - `net.ipv4.ip_forward = 1`
+
+Verification was performed with:
+
+```bash
+ansible -i inventory.ini k8s_cluster -b -m shell -a \
+"swapon --show; getenforce; lsmod | grep -E 'overlay|br_netfilter'; \
+sysctl net.bridge.bridge-nf-call-iptables; \
+sysctl net.ipv4.ip_forward"
+```
+
+The result confirmed that both nodes had:
+
+SELinux: Permissive
+overlay: loaded
+br_netfilter: loaded
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+
+
+### Container Runtime
+
+The playbook ansible/containerd.yml installs and configures containerd on all Kubernetes nodes.
+
+The playbook performs the following tasks:
+
+Installs dnf-plugins-core
+Adds the Docker CE repository
+Installs containerd.io
+Creates /etc/containerd
+Generates the default containerd configuration
+Configures containerd to use the systemd cgroup driver
+Enables and starts the containerd service
+
+The following configuration was enabled: SystemdCgroup = true
+
+Verification confirmed that containerd was:
+
+active
+enabled
+
+on both nodes.
+
+### 1. Why does the Kubernetes kubelet refuse to run if swap is enabled?
+
+Kubernetes expects the kubelet to have predictable control over node memory.
+
+If swap is enabled, the operating system may move memory pages from RAM to disk. This makes memory usage less predictable from Kubernetes' point of view and can interfere with resource limits, scheduling, and memory-pressure decisions.
+
+For this reason, the standard Kubernetes node setup disables swap before starting kubelet.
+
+### 2. Why must containerd and kubelet use the same cgroup driver?
+
+Linux cgroups are used to control and account for resources such as CPU and memory.
+
+The kubelet manages Kubernetes workloads, while containerd manages the actual containers. Both therefore interact with the same cgroup hierarchy.
+
+If kubelet and containerd use different cgroup drivers, they may manage resources using different cgroup structures. This can lead to inconsistent resource management and node instability.
+
+In this project, containerd is configured with: SystemdCgroup = true
+so that the container runtime uses the systemd cgroup driver expected by the Kubernetes node configuration.
+
+
+
+# Task 14 __________________________________________________________________________________________
+
+The kubernetes.yml playbook configures the Kubernetes v1.36 repository and installs:
+
+kubelet
+kubeadm
+kubectl
+
+The installed version was verified as Kubernetes v1.36.5
+Kubelet is enabled on both nodes and firewalld is inactive.
+
+The control-plane.yml playbook initializes the control plane using:
+´´´
+kubeadm init \
+  --apiserver-advertise-address=10.0.1.10 \
+  --pod-network-cidr=192.168.0.0/16
+´´´
+The Kubernetes configuration is copied to /home/sajida/.kube/config for the automation user.
+Calico v3.31.0 is then installed as the cluster Container Network Interface (CNI).
+
+
+### Why is the control-plane node NotReady until Calico is installed?
+
+kubeadm init creates the Kubernetes control plane, but it does not install a pod networking implementation. Without a CNI plugin, Kubernetes cannot configure networking between pods.Calico provides the required pod network. Once Calico is running successfully, Kubernetes networking becomes available and the node can transition to Ready.
+
+# Task 15 __________________________________________________________________________________________
+
+The workers.yml playbook joins the worker node using the join command generated on the control-plane node.
+
+The task uses:
+´´´
+creates: /etc/kubernetes/kubelet.conf
+´´´
+
+so an already joined worker is not unnecessarily joined again when the playbook is rerun. The entire cluster was deployed using:
+´´´
+ansible-playbook -i inventory.ini site.yml
+´´´
+
+The final Ansible result & Cluster status was verified with::
+![ final ansible](docs/screenshots/task15-palyRecap-getNodes.png)
+
+
+### Engineering Post-Mortem - Worker Node Became Unresponsive
+
+**Error:**  
+`k8slab-w1` became unreachable by SSH and Ansible. Azure still showed the VM as running, but the VM Agent status was:
+
+```text
+ProvisioningState/Unavailable
+Not Ready
+VM Agent is unresponsive
+```
+
+Cause:
+The worker VM itself became unhealthy. A normal restart and Azure redeploy did not recover the guest OS/VM Agent.
+
+Fix:
+The worker VM was replaced with Terraform using:
+
+terraform plan -replace='azurerm_linux_virtual_machine.nodes["w1"]'
+
+Only the VM was recreated, while the existing NIC and static IP addresses remained unchanged.
+
+After recreation, the VM Agent returned Ready, SSH access was restored, and Ansible connectivity worked again.
+
+Lesson Learned:
+A VM can still appear as running in Azure while the guest OS or VM Agent is unhealthy. VM health should therefore be checked using SSH, VM Agent status, and Ansible connectivity, not only the cloud power state

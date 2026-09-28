@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Tracker</title>
+
+    <style>
+        :root {
+            --bg: #f4f7fb;
+            --card: #ffffff;
+            --text: #111827;
+            --muted: #6b7280;
+            --border: #d8dee8;
+            --input-bg: #ffffff;
+            --task-bg: #fafbfc;
+            --primary: #4c6fff;
+            --primary-hover: #3957d8;
+            --shadow: rgba(0, 0, 0, 0.08);
+        }
+
+        body.dark {
+            --bg: #111827;
+            --card: #1f2937;
+            --text: #f9fafb;
+            --muted: #9ca3af;
+            --border: #374151;
+            --input-bg: #111827;
+            --task-bg: #111827;
+            --primary: #6d83ff;
+            --primary-hover: #8193ff;
+            --shadow: rgba(0, 0, 0, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 40px 20px;
+            transition: background 0.25s ease, color 0.25s ease;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            gap: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.4rem;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--muted);
+        }
+
+        .theme-toggle {
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            transform: translateY(-1px);
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 8px 25px var(--shadow);
+            margin-bottom: 25px;
+            transition: background 0.25s ease;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: 1fr 160px 120px;
+            gap: 12px;
+        }
+
+        input,
+        select,
+        button {
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 1rem;
+        }
+
+        input,
+        select {
+            background: var(--input-bg);
+            color: var(--text);
+        }
+
+        input::placeholder {
+            color: var(--muted);
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+        }
+
+        .task-list {
+            list-style: none;
+            display: grid;
+            gap: 12px;
+        }
+
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 18px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--task-bg);
+        }
+
+        .task-title {
+            font-weight: 600;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: capitalize;
+        }
+
+        .priority-low {
+            background: #e8f7ee;
+            color: #247a46;
+        }
+
+        .priority-medium {
+            background: #fff4d6;
+            color: #9a6b00;
+        }
+
+        .priority-high {
+            background: #fde8e8;
+            color: #b42318;
+        }
+
+        .status {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .empty {
+            text-align: center;
+            color: var(--muted);
+            padding: 25px 0;
+        }
+
+        @media (max-width: 700px) {
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            form {
+                grid-template-columns: 1fr;
+            }
+
+            .task-item {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <div class="topbar">
+            <div class="header">
+                <h1>Task Tracker</h1>
+                <p>Organize tasks by priority and keep track of your work.</p>
+            </div>
+
+            <button class="theme-toggle" id="theme-toggle">
+                Dark mode
+            </button>
+        </div>
+
+        <div class="card">
+            <form id="task-form">
+                <input
+                    type="text"
+                    id="title"
+                    placeholder="What needs to be done?"
+                    required
+                >
+
+                <select id="priority">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                </select>
+
+                <button type="submit">Add Task</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-bottom: 18px;">Tasks</h2>
+
+            {% if tasks %}
+            <ul class="task-list">
+                {% for task in tasks %}
+                <li class="task-item">
+                    <div class="task-title">
+                        {{ task.title }}
+                    </div>
+
+                    <div class="task-meta">
+                        <span class="badge priority-{{ task.priority }}">
+                            {{ task.priority }}
+                        </span>
+
+                        <span class="status">
+                            {% if task.completed %}
+                                Completed
+                            {% else %}
+                                Open
+                            {% endif %}
+                        </span>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="empty">
+                No tasks yet. Add your first task above.
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <script>
+        const form = document.getElementById("task-form");
+        const themeToggle = document.getElementById("theme-toggle");
+
+        function updateThemeButton() {
+            if (document.body.classList.contains("dark")) {
+                themeToggle.textContent = "Light mode";
+            } else {
+                themeToggle.textContent = "Dark mode";
+            }
+        }
+
+        const savedTheme = localStorage.getItem("theme");
+
+        if (savedTheme === "dark") {
+            document.body.classList.add("dark");
+        }
+
+        updateThemeButton();
+
+        themeToggle.addEventListener("click", function() {
+            document.body.classList.toggle("dark");
+
+            const theme = document.body.classList.contains("dark")
+                ? "dark"
+                : "light";
+
+            localStorage.setItem("theme", theme);
+
+            updateThemeButton();
+        });
+
+        form.addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const title = document.getElementById("title").value;
+            const priority = document.getElementById("priority").value;
+
+            const response = await fetch("/api/tasks", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    title: title,
+                    priority: priority
+                })
+            });
+
+            if (response.ok) {
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert(error.error);
+            }
+        });
+    </script>
+</body>
+</html>

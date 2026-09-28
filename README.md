@@ -614,6 +614,91 @@ The final Ansible result & Cluster status was verified with::
 ![ final ansible](docs/screenshots/task15-palyRecap-getNodes.png)
 
 
+
+# Task 16 __________________________________________________________________________________________
+
+
+A Flask-based Task Tracker application was created with support for task priorities.
+
+Each task contains:
+
+- `id`
+- `title`
+- `completed`
+- `priority`
+
+Supported priorities are:
+
+```text
+low
+medium
+high
+```
+
+The default priority is medium. The priority field is implemented in:
+
+the database model
+the REST API
+the web UI
+
+### API
+
+Tasks can be created using: ´POST /api/tasks´
+
+Example request:
+´´´
+{
+  "title": "Finish project",
+  "priority": "high"
+}
+´´´
+
+Tasks can be retrieved using: ´GET /api/tasks´
+
+The application also provides:
+´´´
+/health
+/ready
+´´´
+
+for health and readiness checks.
+
+### Unit Testing
+
+Four unit tests were implemented using pytest:
+
+- create a task with priority
+- verify default priority is medium
+- reject an invalid priority
+- retrieve tasks from the API
+
+Tests were executed with:
+![ pytest](docs/screenshots/task16-pytest.png)
+
+
+### Seed Data
+A seed script was created at app/scripts/seed.py
+
+It inserts 10 sample tasks with different priorities. The script is executed with:
+
+´´´
+PYTHONPATH=. python scripts/seed.py
+´´´
+
+
+### User Interface
+
+The Task Tracker UI allows users to:
+
+- add new tasks
+- select a task priority
+- view existing tasks
+- distinguish priorities using visual badges
+- switch between light and dark mode
+
+![ ui](docs/screenshots/task16-UI.png)
+
+
 ### Engineering Post-Mortem - Worker Node Became Unresponsive
 
 **Error:**  

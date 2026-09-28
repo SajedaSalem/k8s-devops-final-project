@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-tracker
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: task-tracker
+
+  template:
+    metadata:
+      labels:
+        app: task-tracker
+
+    spec:
+      containers:
+        - name: task-tracker
+          image: ghcr.io/sajedasalem/task-tracker:latest
+
+          ports:
+            - containerPort: 5000
+
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: DATABASE_URL
+
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-tracker
+spec:
+  type: NodePort
+
+  selector:
+    app: task-tracker
+
+  ports:
+    - port: 5000
+      targetPort: 5000
+      nodePort: 30080

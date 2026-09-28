@@ -1,0 +1,58 @@
+
+- name: Configure Kubernetes prerequisites
+  hosts: k8s_cluster
+  become: true
+
+  tasks:
+    - name: Disable swap immediately
+      ansible.builtin.command:
+        cmd: swapoff -a
+      when: ansible_swaptotal_mb > 0
+
+    - name: Disable swap permanently in /etc/fstab
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^([^#].*\sswap\s.*)$'
+        replace: '# \1'
+
+    - name: Set SELinux to permissive immediately
+      ansible.builtin.command:
+        cmd: setenforce 0
+      when:
+        - ansible_selinux.status == "enabled"
+        - ansible_selinux.mode == "enforcing"
+
+    - name: Set SELinux to permissive permanently
+      ansible.builtin.lineinfile:
+        path: /etc/selinux/config
+        regexp: '^SELINUX='
+        line: 'SELINUX=permissive'
+
+    - name: Load required kernel modules
+      ansible.builtin.command:
+        cmd: "modprobe {{ item }}"
+      loop:
+        - overlay
+        - br_netfilter
+      changed_when: false
+
+    - name: Ensure kernel modules load after reboot
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+        mode: '0644'
+
+    - name: Configure Kubernetes sysctl parameters
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/k8s.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables = 1
+          net.ipv4.ip_forward = 1
+        mode: '0644'
+
+    - name: Apply sysctl parameters
+      ansible.builtin.command:
+        cmd: sysctl --system
+      changed_when: false

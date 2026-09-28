@@ -1,0 +1,87 @@
+
+- name: Prepare Kubernetes nodes
+  hosts: k8s_cluster
+  become: true
+
+  tasks:
+
+    - name: Update DNF package cache
+      ansible.builtin.dnf:
+        update_cache: true
+
+    - name: Upgrade all installed packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+
+    - name: Install administration tools
+      ansible.builtin.dnf:
+        name:
+          - nano
+          - vim
+          - git
+          - curl
+          - wget
+          - bash-completion
+          - tar
+          - tmux
+        state: present
+
+    - name: Install networking and troubleshooting tools
+      ansible.builtin.dnf:
+        name:
+          - iproute
+          - net-tools
+          - bind-utils
+          - traceroute
+          - tcpdump
+          - lsof
+          - sysstat
+        state: present
+
+    - name: Install Python and pip
+      ansible.builtin.dnf:
+        name:
+          - python3
+          - python3-pip
+        state: present
+
+    - name: Install chrony
+      ansible.builtin.dnf:
+        name: chrony
+        state: present
+
+    - name: Enable and start chronyd
+      ansible.builtin.systemd:
+        name: chronyd
+        enabled: true
+        state: started
+
+    - name: Enable and start sshd
+      ansible.builtin.systemd:
+        name: sshd
+        enabled: true
+        state: started
+
+    - name: Display system fact summary
+      ansible.builtin.debug:
+        msg:
+          - "Hostname: {{ ansible_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Kernel: {{ ansible_kernel }}"
+          - "vCPU: {{ ansible_processor_vcpus }}"
+          - "RAM: {{ ansible_memtotal_mb }} MB"
+
+    - name: Check if reboot is required
+      ansible.builtin.command: needs-restarting -r
+      register: reboot_check
+      changed_when: false
+      failed_when: reboot_check.rc not in [0, 1]
+
+    - name: Reboot worker if required
+      ansible.builtin.reboot:
+        msg: "Reboot initiated by Ansible after package updates"
+        reboot_timeout: 600
+      when:
+        - inventory_hostname in groups['k8s_workers']
+        - reboot_check.rc == 1

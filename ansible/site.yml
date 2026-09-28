@@ -1,0 +1,6 @@
+
+- import_playbook: prerequisites.yml
+- import_playbook: containerd.yml
+- import_playbook: kubernetes.yml
+- import_playbook: control-plane.yml
+- import_playbook: workers.yml

@@ -1,0 +1,7 @@
+cp1_ip: "10.0.1.10"
+w1_ip: "10.0.1.11"
+cluster_user: "sajida"
+pod_network_cidr: "192.168.0.0/16"
+
+ansible_user: "{{ cluster_user }}"
+ansible_become: true

@@ -40,6 +40,17 @@
       register: calico_apply
       changed_when: "'created' in calico_apply.stdout or 'configured' in calico_apply.stdout"
 
+    - name: Configure Calico IP pool for Azure VXLAN
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch ippool default-ipv4-ippool
+          --type=merge
+          -p '{"spec":{"ipipMode":"Never","vxlanMode":"Always"}}'
+      environment:
+        KUBECONFIG: /home/{{ cluster_user }}/.kube/config
+      register: calico_vxlan
+      changed_when: "'patched' in calico_vxlan.stdout"
+    
     - name: Generate Kubernetes worker join command
       ansible.builtin.command:
         cmd: kubeadm token create --print-join-command

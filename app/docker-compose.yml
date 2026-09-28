@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16
+    container_name: tasktracker-db
+
+    environment:
+      POSTGRES_DB: tasktracker
+      POSTGRES_USER: taskuser
+      POSTGRES_PASSWORD: taskpassword
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskuser -d tasktracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      args:
+        APP_VERSION: "1.0.0"
+
+    container_name: tasktracker-web
+
+    environment:
+      DATABASE_URL: postgresql+psycopg://taskuser:taskpassword@db:5432/tasktracker
+
+    ports:
+      - "5000:5000"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

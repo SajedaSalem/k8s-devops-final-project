@@ -698,6 +698,74 @@ The Task Tracker UI allows users to:
 
 ![ ui](docs/screenshots/task16-UI.png)
 
+# Task 17 __________________________________________________________________________________________
+
+The application is containerized using a `python:3.12-slim` base image.
+
+### Dockerfile
+
+The Dockerfile uses:
+
+- python:3.12-slim
+- APP_VERSION as a build argument
+- a non-root ´appuser´
+- Gunicorn as the production application server
+- port ´5000´
+- dependency installation before copying the application source to improve Docker layer caching
+
+The application runs as a non-root user to avoid giving the application unnecessary privileges inside the container.
+
+
+### Docker Compose
+
+Docker Compose starts two services:
+
+- `web` - Flask application running with Gunicorn
+- `db` - PostgreSQL 16 database
+
+PostgreSQL uses a named Docker volume:
+
+```text
+postgres_data
+```
+
+### Persistence Test
+
+A task was created through the application and Docker Compose was restarted:
+´´´
+docker compose restart
+´´´
+After the restart, the task was still present, confirming that PostgreSQL data is persisted using the Docker volume.
+
+
+### 1. What is the advantage of using a slim Python base image compared to a standard image?
+
+A slim base image contains only the essential packages needed to run the application.
+
+This gives several advantages:
+
+- smaller Docker image size
+- faster image downloads and deployments
+- less storage usage
+- smaller attack surface because fewer unnecessary packages are installed
+
+### 2. What is the operational difference between the /health and /ready endpoints?
+
+
+A health check determines whether the application process is still alive and running.
+A readiness check determines whether the application is actually ready to handle requests.
+
+For this application:
+
+- `/health` checks that the Flask application is running.
+- `/ready` also checks whether the application can communicate with the database.
+
+This means the application can be healthy but not ready. For example, Flask may still be running while PostgreSQL is temporarily unavailable.
+
+
+### Verification
+![ verfication](docs/screenshots/task17-dockerCompose-curlReady.png)
+
 
 ### Engineering Post-Mortem - Worker Node Became Unresponsive
 

@@ -903,8 +903,51 @@ curl http://10.0.1.10:30080/ready
 
 
 ![ verfication](docs/screenshots/task19-browser.png)
+-------------------------------------------------------
+##Bonus2
+Remote `kubectl` access was configured so that the Kubernetes cluster can be managed directly from the local workstation instead of logging in to the control-plane node first.
+
+The Kubernetes administrator configuration was copied from `cp1` to the laptop:
+
+```bash
+mkdir -p ~/.kube
+
+ssh -i ~/.ssh/k8slab_key azureuser@<CP1_PUBLIC_IP> \
+  'sudo cat /etc/kubernetes/admin.conf' \
+  > ~/.kube/k8slab-config
+```
+
+Because the Kubernetes API server uses the private control-plane address, the kubeconfig was updated to connect through localhost:
+´´´
+sed -i 's#https://10.0.1.10:6443#https://127.0.0.1:6443#' \
+  ~/.kube/k8slab-config
+´´´
+
+The TLS server name was kept as the Kubernetes control-plane hostname:
+´´´
+kubectl --kubeconfig ~/.kube/k8slab-config config set-cluster kubernetes \
+  --server=https://127.0.0.1:6443 \
+  --tls-server-name=k8slab-cp1
+´´´
+
+An SSH tunnel was then created from the laptop to the Kubernetes API server:
+´´´
+ssh -i ~/.ssh/k8slab_key \
+  -N \
+  -L 6443:10.0.1.10:6443 \
+  azureuser@<CP1_PUBLIC_IP>
+´´´
+
+With the tunnel running, the cluster can be managed directly from the laptop:
+´´´
+KUBECONFIG=~/.kube/k8slab-config kubectl get nodes
+´´´
+
+The command successfully returned both Kubernetes nodes as Ready, confirming that remote cluster administration from the workstation was working.
+![ verfication](docs/screenshots/bonus2.png)
 
 
+-----------------------------------------------------
 ```markdown
 ## Real Engineering Post-Mortems
 

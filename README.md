@@ -551,12 +551,13 @@ sysctl net.ipv4.ip_forward"
 ```
 
 The result confirmed that both nodes had:
-
+```
 SELinux: Permissive
 overlay: loaded
 br_netfilter: loaded
 net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.ip_forward = 1
+```
 
 
 ### Container Runtime
@@ -615,11 +616,12 @@ The installed version was verified as Kubernetes v1.36.5
 Kubelet is enabled on both nodes and firewalld is inactive.
 
 The control-plane.yml playbook initializes the control plane using:
-´´´
+```
 kubeadm init \
   --apiserver-advertise-address=10.0.1.10 \
   --pod-network-cidr=192.168.0.0/16
-´´´
+```
+
 The Kubernetes configuration is copied to /home/sajida/.kube/config for the automation user.
 Calico v3.31.0 is then installed as the cluster Container Network Interface (CNI).
 
@@ -633,14 +635,15 @@ kubeadm init creates the Kubernetes control plane, but it does not install a pod
 The workers.yml playbook joins the worker node using the join command generated on the control-plane node.
 
 The task uses:
-´´´
+```
 creates: /etc/kubernetes/kubelet.conf
-´´´
+```
 
 so an already joined worker is not unnecessarily joined again when the playbook is rerun. The entire cluster was deployed using:
-´´´
+```
 ansible-playbook -i inventory.ini site.yml
-´´´
+```
+
 
 The final Ansible result & Cluster status was verified with::
 ![ final ansible](docs/screenshots/task15-palyRecap-getNodes.png)
@@ -713,9 +716,10 @@ A seed script was created at app/scripts/seed.py
 
 It inserts 10 sample tasks with different priorities. The script is executed with:
 
-´´´
+```
 PYTHONPATH=. python scripts/seed.py
-´´´
+```
+
 
 
 ### User Interface
@@ -764,9 +768,10 @@ postgres_data
 ### Persistence Test
 
 A task was created through the application and Docker Compose was restarted:
-´´´
+```
 docker compose restart
-´´´
+```
+
 After the restart, the task was still present, confirming that PostgreSQL data is persisted using the Docker volume.
 
 
@@ -826,9 +831,10 @@ The pipeline contains three stages:
 - creates both a commit-SHA tag and the latest tag on pushes to main
 
 Published image:
-´´´
+```
 ghcr.io/sajedasalem/task-tracker:latest
-´´´
+```
+
 
 ### Verification
 ![ verfication](docs/screenshots/task18-pipeline.png)
@@ -853,23 +859,26 @@ The deployment includes:
 
 
 The Task Tracker connects to PostgreSQL using the Kubernetes DNS name:
-´´´
+```
 postgres.default.svc.cluster.local
-´´´
+```
+
 
 The application image is:
-´´´
+```
 ghcr.io/sajedasalem/task-tracker:latest
-´´´
+```
+
 
 The application is exposed internally using NodePort: 30080
 
 For secure testing from the local workstation, an SSH tunnel can be used:
-´´´
+```
 ssh -i ~/.ssh/k8slab_key \
   -L 30080:10.0.1.10:30080 \
   azureuser@<CP1_PUBLIC_IP>
-´´´
+```
+
 
 The UI is then available at: http://localhost:30080
 
@@ -880,20 +889,23 @@ The default Calico installation used IP-in-IP encapsulation.
 Cross-node pod communication failed in Azure, including DNS requests from pods on the worker node to CoreDNS running on the control-plane node.
 
 The Calico IPPool was changed to:
-´´´
+```
 ipipMode: Never
 vxlanMode: Always
-´´´
+```
+
 
 The same configuration is included in the Ansible automation so a newly created Azure cluster receives the correct networking configuration automatically.
 
 ### Verification
-´´´
+```
+
 kubectl get pods,svc,pvc -o wide
 kubectl get ippool default-ipv4-ippool -o yaml
 curl http://10.0.1.10:30080/health
 curl http://10.0.1.10:30080/ready
-´´´
+```
+
 
 
 
@@ -903,6 +915,13 @@ curl http://10.0.1.10:30080/ready
 
 
 ![ verfication](docs/screenshots/task19-browser.png)
+
+# Task 21 ______________________________________________________________
+
+ Resource Teardown & Cloud Cost Management
+
+![ destroy](docs/screenshots/task21-destroy.png)
+
 
 -------------------------------------------------------
 
@@ -920,36 +939,41 @@ ssh -i ~/.ssh/k8slab_key azureuser@<CP1_PUBLIC_IP> \
 ```
 
 Because the Kubernetes API server uses the private control-plane address, the kubeconfig was updated to connect through localhost:
-´´´
+```
+
 sed -i 's#https://10.0.1.10:6443#https://127.0.0.1:6443#' \
   ~/.kube/k8slab-config
-´´´
+```
+
 
 The TLS server name was kept as the Kubernetes control-plane hostname:
-´´´
+```
+
 kubectl --kubeconfig ~/.kube/k8slab-config config set-cluster kubernetes \
   --server=https://127.0.0.1:6443 \
   --tls-server-name=k8slab-cp1
-´´´
+```
+
 
 An SSH tunnel was then created from the laptop to the Kubernetes API server:
-´´´
+```
+
 ssh -i ~/.ssh/k8slab_key \
   -N \
   -L 6443:10.0.1.10:6443 \
   azureuser@<CP1_PUBLIC_IP>
-´´´
+```
 
 With the tunnel running, the cluster can be managed directly from the laptop:
-´´´
+```
 KUBECONFIG=~/.kube/k8slab-config kubectl get nodes
-´´´
+```
 
 The command successfully returned both Kubernetes nodes as Ready, confirming that remote cluster administration from the workstation was working.
 ![ verfication](docs/screenshots/bonus2.png)
 
 
-## bonus1
+## Bonus1
 A third worker node, `w2`, was added to the Terraform node map with:
 
 ```text
@@ -960,21 +984,21 @@ Private IP: 10.0.1.12
 The Terraform configuration was updated so the existing for_each logic could automatically create the additional infrastructure resources for w2.
 
 Before applying, the Terraform plan was reviewed carefully. After protecting the existing virtual machines from unnecessary replacement caused by changes to custom_data, the plan showed only the new w2 resources:
-´´´
+```
 Plan: 4 to add, 0 to change, 0 to destroy.
-´´´
+```
 
 The planned resources were:
-´´´
+```
 azurerm_linux_virtual_machine.nodes["w2"]
 azurerm_network_interface.nodes["w2"]
 azurerm_network_interface_security_group_association.nodes["w2"]
 azurerm_public_ip.nodes["w2"]
-´´´
+```
 
 This confirmed that the infrastructure design supports adding another worker through a small change to the Terraform node map.
 
-## Azure Quota Limitation
+### Azure Quota Limitation
 
 During terraform apply, Azure successfully created the supporting network resources for w2, but creation of the virtual machine failed because the subscription had reached its regional vCPU quota.
 
@@ -984,25 +1008,25 @@ Azure reported:
 The existing cp1 and w1 virtual machines already consumed all 4 available regional vCPUs, while the new w2 VM required 2 additional vCPUs.
 Because of this Azure subscription quota, the third worker could not be fully provisioned.
 
-## Cleanup
+### Cleanup
 
 The partially created w2 resources were removed safely through Terraform. After removing w2 from the node map, Terraform generated the following cleanup plan:
 
-´´´
+```
 Plan: 0 to add, 0 to change, 3 to destroy.
-´´´
+```
 
 Only the partially created w2 resources were removed:
-´´´
+```
 azurerm_network_interface.nodes["w2"]
 azurerm_network_interface_security_group_association.nodes["w2"]
 azurerm_public_ip.nodes["w2"]
-´´´
+```
 
 The existing cp1 and w1 nodes were not modified.
 
 -----------------------------------------------------
-```markdown
+
 ## Real Engineering Post-Mortems
 
 ### Engineering Post-Mortem 1: Terraform Download Failure
@@ -1027,6 +1051,7 @@ This package is not officially maintained by HashiCorp. Classic confinement perm
 Result: Terraform v1.16.4 on linux_amd64.
 
 This resolved the CLI installation. Access to Terraform provider downloads has not yet been verified.
+
 
 
 
@@ -1076,6 +1101,8 @@ After recreation, the VM Agent returned Ready, SSH access was restored, and Ansi
 A VM can still appear as running in Azure while the guest OS or VM Agent is unhealthy. VM health should therefore be checked using SSH, VM Agent status, and Ansible connectivity, not only the cloud power state.
 
 
+
+
 ### Post-Mortem 4 - Kubernetes Pods Could Not Reach CoreDNS
 
 ### Error: The Task Tracker pods entered `CrashLoopBackOff` because the PostgreSQL hostname could not be resolved. A DNS test from the worker returned:
@@ -1103,3 +1130,4 @@ After the change, worker-node pods could reach CoreDNS and Kubernetes service di
 
 ### Lesson: 
 CNI configuration must match the networking capabilities of the underlying cloud platform. A Kubernetes component may appear healthy while cross-node networking is still broken.
+

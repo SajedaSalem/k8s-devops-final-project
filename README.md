@@ -903,8 +903,10 @@ curl http://10.0.1.10:30080/ready
 
 
 ![ verfication](docs/screenshots/task19-browser.png)
+
 -------------------------------------------------------
-##Bonus2
+
+## Bonus2
 Remote `kubectl` access was configured so that the Kubernetes cluster can be managed directly from the local workstation instead of logging in to the control-plane node first.
 
 The Kubernetes administrator configuration was copied from `cp1` to the laptop:
@@ -946,6 +948,58 @@ KUBECONFIG=~/.kube/k8slab-config kubectl get nodes
 The command successfully returned both Kubernetes nodes as Ready, confirming that remote cluster administration from the workstation was working.
 ![ verfication](docs/screenshots/bonus2.png)
 
+
+## bonus1
+A third worker node, `w2`, was added to the Terraform node map with:
+
+```text
+Hostname: k8slab-w2
+Private IP: 10.0.1.12
+```
+
+The Terraform configuration was updated so the existing for_each logic could automatically create the additional infrastructure resources for w2.
+
+Before applying, the Terraform plan was reviewed carefully. After protecting the existing virtual machines from unnecessary replacement caused by changes to custom_data, the plan showed only the new w2 resources:
+´´´
+Plan: 4 to add, 0 to change, 0 to destroy.
+´´´
+
+The planned resources were:
+´´´
+azurerm_linux_virtual_machine.nodes["w2"]
+azurerm_network_interface.nodes["w2"]
+azurerm_network_interface_security_group_association.nodes["w2"]
+azurerm_public_ip.nodes["w2"]
+´´´
+
+This confirmed that the infrastructure design supports adding another worker through a small change to the Terraform node map.
+
+## Azure Quota Limitation
+
+During terraform apply, Azure successfully created the supporting network resources for w2, but creation of the virtual machine failed because the subscription had reached its regional vCPU quota.
+
+Azure reported:
+![ quota](docs/screenshots/bonus1.png)
+
+The existing cp1 and w1 virtual machines already consumed all 4 available regional vCPUs, while the new w2 VM required 2 additional vCPUs.
+Because of this Azure subscription quota, the third worker could not be fully provisioned.
+
+## Cleanup
+
+The partially created w2 resources were removed safely through Terraform. After removing w2 from the node map, Terraform generated the following cleanup plan:
+
+´´´
+Plan: 0 to add, 0 to change, 3 to destroy.
+´´´
+
+Only the partially created w2 resources were removed:
+´´´
+azurerm_network_interface.nodes["w2"]
+azurerm_network_interface_security_group_association.nodes["w2"]
+azurerm_public_ip.nodes["w2"]
+´´´
+
+The existing cp1 and w1 nodes were not modified.
 
 -----------------------------------------------------
 ```markdown

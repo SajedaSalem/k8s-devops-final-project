@@ -73,6 +73,8 @@ variable "nodes" {
       hostname   = "k8slab-w1"
       private_ip = "10.0.1.11"
     }
+
+
   }
 }
 

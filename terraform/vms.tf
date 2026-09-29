@@ -22,6 +22,7 @@ resource "azurerm_network_interface" "nodes" {
     private_ip_address            = each.value.private_ip
     public_ip_address_id          = azurerm_public_ip.nodes[each.key].id
   }
+
 }
 
 resource "azurerm_network_interface_security_group_association" "nodes" {
@@ -76,5 +77,10 @@ resource "azurerm_linux_virtual_machine" "nodes" {
     name      = "9-base"
   }
 
+  lifecycle {
+    ignore_changes = [
+      custom_data
+    ]
+  }
 
 }

@@ -7,5 +7,6 @@ write_files:
       10.0.1.10 k8slab-cp1
       10.0.1.11 k8slab-w1
 
+
 runcmd:
   - systemctl enable --now chronyd

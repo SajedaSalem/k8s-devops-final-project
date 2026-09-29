@@ -7,8 +7,7 @@ stringData:
   POSTGRES_DB: tasktracker
   POSTGRES_USER: taskuser
   POSTGRES_PASSWORD: taskpassword
-  DATABASE_URL: postgresql+psycopg://taskuser:taskpassword@postgres:5432/tasktracker
-
+  DATABASE_URL: postgresql+psycopg://taskuser:taskpassword@postgres.default.svc.cluster.local:5432/tasktracker
 ---
 apiVersion: v1
 kind: PersistentVolume

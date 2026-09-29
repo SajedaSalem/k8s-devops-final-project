@@ -3,6 +3,77 @@
 ## End-to-end DevOps bootcamp project using Azure, Terraform, Ansible,Kubernetes, GitHub Actions, Flask, and PostgreSQL.
 
 
+## Quick Reproduction Guide
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/SajedaSalem/k8s-devops-final-project.git
+cd k8s-devops-final-project
+```
+
+### 2. Configure Terraform
+
+Update the required Terraform variables for the local environment, including:
+- Azure subscription ID
+- allowed public IP
+- SSH public key
+- network settings if required
+
+Then:
+
+- cd terraform
+- terraform init
+- terraform fmt -check
+- terraform validate
+- terraform plan
+- terraform apply
+
+### 3. Configure the Kubernetes nodes with Ansible
+
+SSH to the control-plane node as the automation user:
+´´´
+cd ~/k8s-devops-final-project/ansible
+ansible -i inventory.ini k8s_cluster -m ping
+ansible-playbook -i inventory.ini prepare-nodes.yml
+ansible-playbook -i inventory.ini site.yml
+´´´
+Verify:
+´´´
+kubectl get nodes
+´´´
+
+### 4. Run the application locally with Docker Compose
+´´´
+cd app
+docker compose up -d --build
+docker compose ps
+curl http://localhost:5000/ready
+´´´
+Optional demo data:
+´´´
+docker compose exec web python scripts/seed.py
+´´´
+
+### 5. Deploy the application to Kubernetes
+´´´
+kubectl apply -f k8s/
+kubectl get pods,svc,pvc -o wide
+´´´
+
+### 6. Access the application
+
+Using an SSH tunnel:
+´´´
+ssh -i ~/.ssh/k8slab_key \
+  -L 30080:10.0.1.10:30080 \
+  azureuser@<CP1_PUBLIC_IP>
+´´´
+
+Then browse to: http://localhost:30080
+
+
+------------------------------
 ##  Project Status 
 
 Completed:
@@ -70,7 +141,7 @@ The selected subscription was enabled and set as the default.
 
 
 
-# Task 1 ___________________________________________________________________________________________
+# Task 1 _______________________________________________________________
 
 ### 1. Which files did you exclude with .gitignore , and what sensitive data would they leak if committed?
 
@@ -99,30 +170,8 @@ it from repository history. A .gitignore rule does not erase existing Git histor
 
 
 
-# Task 2 ___________________________________________________________________________________________
+# Task 2 _______________________________________________________________
 
-### Engineering Post-Mortem 1: Terraform Download Failure
-
-### Error
-Terraform downloads and requests to HashiCorp's release and APT endpoints returned HTTP 404.
-
-### Cause
-The response included " x-amzn-waf-reason: geo ", and the browser reported that the content was unavailable in the current region.
-
-### Fix
-Installed Terraform through the Snap Store using the community-maintained Snapcrafters package:
-
-    sudo snap install terraform --classic
-
-This package is not officially maintained by HashiCorp. Classic confinement permits broader access than a strictly confined Snap.
-
-### Verification
-
-    terraform version
-
-Result: Terraform v1.16.4 on linux_amd64.
-
-This resolved the CLI installation. Access to Terraform provider downloads has not yet been verified.
 
 ### Verification Screenshot
 
@@ -145,7 +194,7 @@ The local Azure CLI credential cache must also remain private.
 
 
 
-# Task 3 ___________________________________________________________________________________________
+# Task 3 _______________________________________________________________
 
 ### What happens if you run "terraform apply" before accepting marketplace terms?
 
@@ -158,7 +207,7 @@ Terraform may fail when trying to create the Rocky Linux virtual machines becaus
 ![Image terms are accepted](docs/screenshots/task03-acceptedTerms.png)
 
 
-# Task 4 ___________________________________________________________________________________________
+# Task 4 _______________________________________________________________
 
 
 ### What is the difference between a public key and a private key, and where does each reside?
@@ -166,24 +215,7 @@ Terraform may fail when trying to create the Rocky Linux virtual machines becaus
 The public key can be distributed to remote systems and is used to verify authentication attempts. The private key must remain secret on the local machine because it proves the user's identity. In this project, the private key stays on the laptop, while only the public key is installed on the Azure VMs.
 
 
-# Task 5 ___________________________________________________________________________________________
-
-### Engineering Post-Mortem 2: HashiCorp Registry Unavailable
-
-### Error
-`terraform init` failed because Terraform could not retrieve the `hashicorp/azurerm` provider from `registry.terraform.io`.
-
-
-### Cause
-HashiCorp services were not available from my current region. The HashiCorp API also returned a message stating that the content was not available in the region.
-
-
-### Fix
-I used GitHub Actions to build the official hashicorp/azurerm provider from the HashiCorp source code. I then downloaded the compiled provider binary and configured a local Terraform filesystem mirror through ~/.terraformrc.
-
-Terraform was then able to initialize successfully using:
-
-  terraform init
+# Task 5 _______________________________________________________________
 
 
 ### 1. Why does the NSG not need rules for Kubernetes traffic between cp1 and w1 inside the subnet?
@@ -216,7 +248,7 @@ terraform.tfstate stores Terraform's record of the real infrastructure. It conta
 The state file should not be committed to Git because it can expose infrastructure details and potentially sensitive values. It is therefore excluded through .gitignore.
 
 
-# Task 6 ___________________________________________________________________________________________
+# Task 6 _______________________________________________________________
 
 ### Verification Screenshot
 
@@ -225,7 +257,7 @@ The state file should not be committed to Git because it can expose infrastructu
 ![successful SSH login to both VMs](docs/screenshots/task06.sshLogin.png)
 
 
-# Task 7 ___________________________________________________________________________________________
+# Task 7 _______________________________________________________________
 
 
 A dedicated automation user named `sajida` was created on both Kubernetes nodes.
@@ -275,7 +307,7 @@ This is safer because:
 The file permissions are restricted to 0440, as required.
 
 
-# Task 8 ___________________________________________________________________________________________
+# Task 8 _______________________________________________________________
 
 A dedicated SSH key pair was generated on `cp1` under the automation user `sajida`.
 
@@ -336,7 +368,7 @@ The recommended permissions are:
 
 This ensures that only the owner can modify the SSH configuration and authorized keys.
 
-# Task 9 ___________________________________________________________________________________________
+# Task 9 _______________________________________________________________
 
 Ansible Core was installed only on the control-plane node k8slab-cp1.
 The worker node k8slab-w1 does not have Ansible installed.
@@ -376,7 +408,7 @@ This allows cp1 to manage w1 remotely.
 
 
 
-# Task 10 __________________________________________________________________________________________
+# Task 10 ______________________________________________________________
 
 An Ansible inventory was created to define the Kubernetes control-plane and worker nodes.
 The inventory contains:
@@ -417,7 +449,7 @@ allows Ansible to manage the control-plane node directly from the local machine 
 This makes the configuration simpler and avoids relying on SSH for local execution.
 
 
-# Task 11 __________________________________________________________________________________________
+# Task 11 ______________________________________________________________
 
 Created the Ansible playbook: `ansible/prepare-nodes.yml`
 
@@ -479,7 +511,7 @@ changed
 This allows Infrastructure as Code to be safely executed multiple times while keeping systems consistent.
 
 
-# Task 12 __________________________________________________________________________________________
+# Task 12 ______________________________________________________________
 
 ### Why can control-plane.yml and workers.yml not be swapped?
 
@@ -490,7 +522,7 @@ workers.yml depends on that generated join command.
 
 Therefore, if workers.yml ran first, the worker would have no initialized Kubernetes API server to connect to and no valid join command to use.
 
-# Task 13 __________________________________________________________________________________________
+# Task 13 ______________________________________________________________
 
 For Kubernetes to run correctly, both nodes were prepared with the required Linux kernel, networking, security, and container runtime settings.
 
@@ -571,7 +603,7 @@ so that the container runtime uses the systemd cgroup driver expected by the Kub
 
 
 
-# Task 14 __________________________________________________________________________________________
+# Task 14 ______________________________________________________________
 
 The kubernetes.yml playbook configures the Kubernetes v1.36 repository and installs:
 
@@ -596,7 +628,7 @@ Calico v3.31.0 is then installed as the cluster Container Network Interface (CNI
 
 kubeadm init creates the Kubernetes control plane, but it does not install a pod networking implementation. Without a CNI plugin, Kubernetes cannot configure networking between pods.Calico provides the required pod network. Once Calico is running successfully, Kubernetes networking becomes available and the node can transition to Ready.
 
-# Task 15 __________________________________________________________________________________________
+# Task 15 ______________________________________________________________
 
 The workers.yml playbook joins the worker node using the join command generated on the control-plane node.
 
@@ -615,7 +647,7 @@ The final Ansible result & Cluster status was verified with::
 
 
 
-# Task 16 __________________________________________________________________________________________
+# Task 16 ______________________________________________________________
 
 
 A Flask-based Task Tracker application was created with support for task priorities.
@@ -698,7 +730,7 @@ The Task Tracker UI allows users to:
 
 ![ ui](docs/screenshots/task16-UI.png)
 
-# Task 17 __________________________________________________________________________________________
+# Task 17 ______________________________________________________________
 
 The application is containerized using a `python:3.12-slim` base image.
 
@@ -767,9 +799,163 @@ This means the application can be healthy but not ready. For example, Flask may 
 ![ verfication](docs/screenshots/task17-dockerCompose-curlReady.png)
 
 
-### Engineering Post-Mortem - Worker Node Became Unresponsive
+# Task 18 ______________________________________________________________
 
-**Error:**  
+A GitHub Actions workflow was created at:
+
+```text
+.github/workflows/ci-cd.yml
+```
+
+The pipeline contains three stages:
+
+1. Lint and Unit Tests
+- Python 3.12
+- flake8
+- pytest
+
+2. Terraform Validation
+- terraform init
+- terraform fmt -check
+- terraform validate
+
+3. Docker Build and Push
+- builds the Task Tracker image
+- authenticates to GitHub Container Registry using GITHUB_TOKEN
+- pushes the image to GHCR
+- creates both a commit-SHA tag and the latest tag on pushes to main
+
+Published image:
+´´´
+ghcr.io/sajedasalem/task-tracker:latest
+´´´
+
+### Verification
+![ verfication](docs/screenshots/task18-pipeline.png)
+![ verfication](docs/screenshots/task18-package.png)
+
+
+# Task 19 ______________________________________________________________
+
+The Task Tracker application and PostgreSQL database are deployed to the Kubernetes cluster using manifests under: k8s/
+
+The deployment includes:
+
+- PostgreSQL 16 Deployment
+- PostgreSQL ClusterIP Service
+- Kubernetes Secret for database credentials
+- PersistentVolume
+- PersistentVolumeClaim
+- Task Tracker Deployment using the image from GHCR
+- Task Tracker NodePort Service
+- readiness probe using /ready
+- liveness probe using /health
+
+
+The Task Tracker connects to PostgreSQL using the Kubernetes DNS name:
+´´´
+postgres.default.svc.cluster.local
+´´´
+
+The application image is:
+´´´
+ghcr.io/sajedasalem/task-tracker:latest
+´´´
+
+The application is exposed internally using NodePort: 30080
+
+For secure testing from the local workstation, an SSH tunnel can be used:
+´´´
+ssh -i ~/.ssh/k8slab_key \
+  -L 30080:10.0.1.10:30080 \
+  azureuser@<CP1_PUBLIC_IP>
+´´´
+
+The UI is then available at: http://localhost:30080
+
+
+### Azure Calico Networking
+
+The default Calico installation used IP-in-IP encapsulation.
+Cross-node pod communication failed in Azure, including DNS requests from pods on the worker node to CoreDNS running on the control-plane node.
+
+The Calico IPPool was changed to:
+´´´
+ipipMode: Never
+vxlanMode: Always
+´´´
+
+The same configuration is included in the Ansible automation so a newly created Azure cluster receives the correct networking configuration automatically.
+
+### Verification
+´´´
+kubectl get pods,svc,pvc -o wide
+kubectl get ippool default-ipv4-ippool -o yaml
+curl http://10.0.1.10:30080/health
+curl http://10.0.1.10:30080/ready
+´´´
+
+
+
+### Verification
+![ verfication](docs/screenshots/task19-kubectl%20get%20pods,svc%20-o%20wide%20.png)
+
+
+
+![ verfication](docs/screenshots/task19-browser.png)
+
+
+```markdown
+## Real Engineering Post-Mortems
+
+### Engineering Post-Mortem 1: Terraform Download Failure
+
+### Error
+Terraform downloads and requests to HashiCorp's release and APT endpoints returned HTTP 404.
+
+### Cause
+The response included " x-amzn-waf-reason: geo ", and the browser reported that the content was unavailable in the current region.
+
+### Fix
+Installed Terraform through the Snap Store using the community-maintained Snapcrafters package:
+
+    sudo snap install terraform --classic
+
+This package is not officially maintained by HashiCorp. Classic confinement permits broader access than a strictly confined Snap.
+
+### Verification
+
+    terraform version
+
+Result: Terraform v1.16.4 on linux_amd64.
+
+This resolved the CLI installation. Access to Terraform provider downloads has not yet been verified.
+
+
+
+### Engineering Post-Mortem 2: HashiCorp Registry Unavailable
+
+### Error
+`terraform init` failed because Terraform could not retrieve the `hashicorp/azurerm` provider from `registry.terraform.io`.
+
+
+### Cause
+HashiCorp services were not available from my current region. The HashiCorp API also returned a message stating that the content was not available in the region.
+
+
+### Fix
+I used GitHub Actions to build the official hashicorp/azurerm provider from the HashiCorp source code. I then downloaded the compiled provider binary and configured a local Terraform filesystem mirror through ~/.terraformrc.
+
+Terraform was then able to initialize successfully using:
+
+  terraform init
+
+
+
+
+### Engineering Post-Mortem 3 - Worker Node Became Unresponsive
+
+### Error  
 `k8slab-w1` became unreachable by SSH and Ansible. Azure still showed the VM as running, but the VM Agent status was:
 
 ```text
@@ -778,17 +964,45 @@ Not Ready
 VM Agent is unresponsive
 ```
 
-Cause:
+### Cause:
 The worker VM itself became unhealthy. A normal restart and Azure redeploy did not recover the guest OS/VM Agent.
 
-Fix:
+### Fix:
 The worker VM was replaced with Terraform using:
-
 terraform plan -replace='azurerm_linux_virtual_machine.nodes["w1"]'
 
 Only the VM was recreated, while the existing NIC and static IP addresses remained unchanged.
 
 After recreation, the VM Agent returned Ready, SSH access was restored, and Ansible connectivity worked again.
 
-Lesson Learned:
-A VM can still appear as running in Azure while the guest OS or VM Agent is unhealthy. VM health should therefore be checked using SSH, VM Agent status, and Ansible connectivity, not only the cloud power state
+### Lesson Learned:
+A VM can still appear as running in Azure while the guest OS or VM Agent is unhealthy. VM health should therefore be checked using SSH, VM Agent status, and Ansible connectivity, not only the cloud power state.
+
+
+### Post-Mortem 4 - Kubernetes Pods Could Not Reach CoreDNS
+
+### Error: The Task Tracker pods entered `CrashLoopBackOff` because the PostgreSQL hostname could not be resolved. A DNS test from the worker returned:
+
+```text
+connection timed out; no servers could be reached
+```
+
+### Cause: Calico was configured with IP-in-IP encapsulation:
+
+´´´
+ipipMode: Always
+vxlanMode: Never
+´´´
+
+Cross-node pod networking did not function correctly in the Azure environment.
+
+### Fix: The Calico IPPool was changed to VXLAN:
+´´´
+ipipMode: Never
+vxlanMode: Always
+´´´
+
+After the change, worker-node pods could reach CoreDNS and Kubernetes service discovery worked correctly. The fix was then added to the Ansible automation.
+
+### Lesson: 
+CNI configuration must match the networking capabilities of the underlying cloud platform. A Kubernetes component may appear healthy while cross-node networking is still broken.
